@@ -8,7 +8,7 @@ import uuid
 import os
 import json
 
-app = FastAPI(title="Video Ad Server", version="7.2.0 (Smart Video Dir Resolution)")
+app = FastAPI(title="Video Ad Server", version="7.3.0 (Root & Subfolder Auto-Detector)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,26 +18,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Smart directory resolution: checks Desktop, ./videos, ./local-videos, and repo root
-candidate_dirs = [
-    "C:/Users/User/Desktop/videos",
-    os.path.join(os.path.dirname(__file__), "videos"),
-    os.path.join(os.path.dirname(__file__), "local-videos"),
-    os.path.dirname(__file__)
-]
+# Smart directory finder: checks Desktop, ./videos, ./local-videos, and repo root
+root_dir = os.path.dirname(os.path.abspath(__file__))
+videos_sub = os.path.join(root_dir, "videos")
+local_videos_sub = os.path.join(root_dir, "local-videos")
+desktop_videos = "C:/Users/User/Desktop/videos"
 
 VIDEOS_DIR = None
-for d in candidate_dirs:
-    try:
-        if os.path.exists(d) and any(f.endswith(".mp4") for f in os.listdir(d)):
-            VIDEOS_DIR = d
-            break
-    except Exception:
-        pass
 
-if not VIDEOS_DIR:
-    VIDEOS_DIR = os.path.join(os.path.dirname(__file__), "videos")
-    os.makedirs(VIDEOS_DIR, exist_ok=True)
+if os.path.exists(desktop_videos) and any(f.endswith(".mp4") for f in os.listdir(desktop_videos)):
+    VIDEOS_DIR = desktop_videos
+elif os.path.exists(videos_sub) and any(f.endswith(".mp4") for f in os.listdir(videos_sub)):
+    VIDEOS_DIR = videos_sub
+elif os.path.exists(local_videos_sub) and any(f.endswith(".mp4") for f in os.listdir(local_videos_sub)):
+    VIDEOS_DIR = local_videos_sub
+elif any(f.endswith(".mp4") for f in os.listdir(root_dir)):
+    VIDEOS_DIR = root_dir
+else:
+    VIDEOS_DIR = root_dir
 
 app.mount("/local-videos", StaticFiles(directory=VIDEOS_DIR), name="local-videos")
 
