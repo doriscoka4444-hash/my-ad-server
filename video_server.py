@@ -7,7 +7,7 @@ import uuid
 import os
 import json
 
-app = FastAPI(title="Video Ad Server", version="9.0.0 (Video Only - No WebP Posters)")
+app = FastAPI(title="Video Ad Server", version="9.1.0 (Universal Safari Fullscreen Fix)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -153,8 +153,8 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (v9.0 - Video Only)</h1>
-            <p>Serveri është aktiv dhe po shërben vetëm videot MP4 direkte.</p>
+            <h1>🚀 Video Ad Server Live Dashboard (v9.1 - Safari Fullscreen Fixed)</h1>
+            <p>Serveri është aktiv.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
             </div>
@@ -482,12 +482,23 @@ async def get_loader_script(request: Request):
         const soundNotice = container.querySelector("#soundNotice");
         const fsBtn = container.querySelector("#fsBtn");
 
+        // Universal Cross-Browser Fullscreen Handler for Safari (iOS & Desktop), Chrome, Firefox & Edge
         if (fsBtn && video) {{
             fsBtn.addEventListener("click", function(e) {{
                 e.stopPropagation();
-                if (video.requestFullscreen) video.requestFullscreen();
-                else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
-                else if (video.msRequestFullscreen) video.msRequestFullscreen();
+                e.preventDefault();
+
+                if (typeof video.webkitEnterFullscreen === 'function') {{
+                    video.webkitEnterFullscreen(); // iOS Safari native video player
+                }} else if (video.requestFullscreen) {{
+                    video.requestFullscreen(); // Standard HTML5 Fullscreen API
+                }} else if (video.webkitRequestFullscreen) {{
+                    video.webkitRequestFullscreen(); // Desktop Safari & WebKit
+                }} else if (video.mozRequestFullScreen) {{
+                    video.mozRequestFullScreen(); // Firefox
+                }} else if (video.msRequestFullscreen) {{
+                    video.msRequestFullscreen(); // IE / Edge
+                }}
             }});
         }}
 
