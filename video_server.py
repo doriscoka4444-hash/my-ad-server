@@ -1,5 +1,5 @@
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse
+from fastapi import FastAPI, HTTPException, Request, Header
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import urllib.parse
 import random
@@ -7,7 +7,7 @@ import uuid
 import os
 import json
 
-app = FastAPI(title="Video Ad Server", version="9.2.0 (Safari Muted Autoplay Fix)")
+app = FastAPI(title="Video Ad Server", version="10.0.0 (HTTP 206 Range Streaming for Safari)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,24 +19,66 @@ app.add_middleware(
 
 root_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Universal recursive file finder for videos
-@app.get("/local-videos/{filename:path}")
-async def serve_local_video(filename: str):
+def find_file_recursive(filename: str):
     desktop_dir = "C:/Users/User/Desktop/videos"
     if os.path.exists(desktop_dir) and filename in os.listdir(desktop_dir):
-        file_path = os.path.join(desktop_dir, filename)
-        if filename.endswith(".mp4"):
-            return FileResponse(file_path, media_type="video/mp4")
-        return FileResponse(file_path)
+        return os.path.join(desktop_dir, filename)
 
     for current_root, dirs, files in os.walk(root_dir):
         if filename in files:
-            file_path = os.path.join(current_root, filename)
-            if filename.endswith(".mp4"):
-                return FileResponse(file_path, media_type="video/mp4")
-            return FileResponse(file_path)
+            return os.path.join(current_root, filename)
+    return None
 
-    raise HTTPException(status_code=404, detail=f"File {filename} not found in repository")
+# HTTP 206 Partial Content Range Streaming required by Safari & iOS
+@app.get("/local-videos/{filename:path}")
+async def serve_local_video(filename: str, request: Request, range: str = Header(None)):
+    file_path = find_file_recursive(filename)
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"File {filename} not found in repository")
+
+    file_size = os.path.getsize(file_path)
+    media_type = "video/mp4" if filename.endswith(".mp4") else ("image/webp" if filename.endswith(".webp") else "application/octet-stream")
+
+    # If not a video or no Range header requested, return standard response with Accept-Ranges header
+    if not range or not filename.endswith(".mp4"):
+        return FileResponse(file_path, media_type=media_type, headers={"Accept-Ranges": "bytes"})
+
+    # Parse Range Header (e.g. bytes=0- or bytes=0-1024)
+    try:
+        units, range_str = range.strip().split("=")
+        start_str, end_str = range_str.split("-")
+        start = int(start_str) if start_str else 0
+        end = int(end_str) if end_str else file_size - 1
+    except Exception:
+        start = 0
+        end = file_size - 1
+
+    if start >= file_size or end >= file_size or start > end:
+        return Response(status_code=416, headers={"Content-Range": f"bytes */{file_size}", "Accept-Ranges": "bytes"})
+
+    chunk_size = (end - start) + 1
+
+    def iter_file():
+        with open(file_path, "rb") as f:
+            f.seek(start)
+            bytes_left = chunk_size
+            while bytes_left > 0:
+                read_size = min(64 * 1024, bytes_left)
+                data = f.read(read_size)
+                if not data:
+                    break
+                bytes_left -= len(data)
+                yield data
+
+    headers = {
+        "Content-Range": f"bytes {start}-{end}/{file_size}",
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(chunk_size),
+        "Content-Type": media_type,
+        "Cache-Control": "public, max-age=3600"
+    }
+
+    return StreamingResponse(iter_file(), status_code=206, headers=headers)
 
 wa_message = urllib.parse.quote("Dua te di me shume rreth ketij produktit!")
 whatsapp_url = f"https://wa.me/355685846937?text={wa_message}"
@@ -153,7 +195,7 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (v9.2)</h1>
+            <h1>🚀 Video Ad Server Live Dashboard (v10.0 - Safari HTTP 206 Streaming)</h1>
             <p>Serveri është aktiv.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
@@ -482,7 +524,6 @@ async def get_loader_script(request: Request):
         const soundNotice = container.querySelector("#soundNotice");
         const fsBtn = container.querySelector("#fsBtn");
 
-        // Explicitly set DOM properties for Safari / iOS autoplay policy
         if (video) {{
             video.muted = true;
             video.defaultMuted = true;
@@ -491,22 +532,21 @@ async def get_loader_script(request: Request):
             video.setAttribute("playsinline", "");
         }}
 
-        // Universal Cross-Browser Fullscreen Handler for Safari (iOS & Desktop), Chrome, Firefox & Edge
         if (fsBtn && video) {{
             fsBtn.addEventListener("click", function(e) {{
                 e.stopPropagation();
                 e.preventDefault();
 
                 if (typeof video.webkitEnterFullscreen === 'function') {{
-                    video.webkitEnterFullscreen(); // iOS Safari native video player
+                    video.webkitEnterFullscreen();
                 }} else if (video.requestFullscreen) {{
-                    video.requestFullscreen(); // Standard HTML5 Fullscreen API
+                    video.requestFullscreen();
                 }} else if (video.webkitRequestFullscreen) {{
-                    video.webkitRequestFullscreen(); // Desktop Safari & WebKit
+                    video.webkitRequestFullscreen();
                 }} else if (video.mozRequestFullScreen) {{
-                    video.mozRequestFullScreen(); // Firefox
+                    video.mozRequestFullScreen();
                 }} else if (video.msRequestFullscreen) {{
-                    video.msRequestFullscreen(); // IE / Edge
+                    video.msRequestFullscreen();
                 }}
             }});
         }}
@@ -539,7 +579,6 @@ async def get_loader_script(request: Request):
             const playPromise = video.play();
             if (playPromise !== undefined) {{
                 playPromise.catch(error => {{
-                    // Fallback to muted user interaction trigger
                     document.addEventListener('touchstart', function() {{
                         video.muted = true;
                         video.play().catch(e => {{}});
@@ -560,7 +599,7 @@ async def get_loader_script(request: Request):
                     video.pause();
                 }}
             }});
-        }}, {{ threshold: 0.15 }});
+        }}, {{ threshold: 0.2 }});
 
         observer.observe(container);
 
