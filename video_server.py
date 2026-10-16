@@ -6,8 +6,9 @@ import random
 import uuid
 import os
 import json
+import threading
 
-app = FastAPI(title="Video Ad Server", version="10.2.0 (Sponsorizuar & Poppins Font)")
+app = FastAPI(title="Video Ad Server", version="11.0.0 (Advanced Ad Analytics Suite)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,6 +19,7 @@ app.add_middleware(
 )
 
 root_dir = os.path.dirname(os.path.abspath(__file__))
+stats_lock = threading.Lock()
 
 def find_file_recursive(filename: str):
     desktop_dir = "C:/Users/User/Desktop/videos"
@@ -83,14 +85,20 @@ whatsapp_url = f"https://wa.me/355685846937?text={wa_message}"
 
 ADS_DATABASE = {
     "reklama-1": {
-        "title": "Mbajtese per produkte siper lavatrices",
+        "title": "Zbulo më shumë rreth produktit",
         "video_filename": "video1_fast.mp4",
-        "description": "Pastro rremujen dhe vendos te gjitha produktet ne rregull",
+        "description": "Ofertë Ekskluzive: Kurseni sot me uljen tonë speciale!",
         "old_price": "3,100 Lekë",
         "price": "2,800 Lekë",
         "whatsapp_link": whatsapp_url,
         "views": 0,
-        "clicks": 0
+        "viewable_impressions": 0,
+        "clicks": 0,
+        "unmutes": 0,
+        "fullscreens": 0,
+        "video_completes": 0,
+        "mobile_views": 0,
+        "desktop_views": 0
     },
     "reklama-2": {
         "title": "Mbështetëse për Gju - Lehtësim i Dhimbjeve",
@@ -100,17 +108,29 @@ ADS_DATABASE = {
         "price": "3,500 Lekë",
         "whatsapp_link": whatsapp_url,
         "views": 0,
-        "clicks": 0
+        "viewable_impressions": 0,
+        "clicks": 0,
+        "unmutes": 0,
+        "fullscreens": 0,
+        "video_completes": 0,
+        "mobile_views": 0,
+        "desktop_views": 0
     },
     "reklama-3": {
-        "title": "Zmadhues per celular",
+        "title": "Ofertë e Muajit - Produkt Tepër i Kërkuar",
         "video_filename": "video3_fast.mp4",
-        "description": "E shfaq ekranin e celularit me kualitet te larte.",
+        "description": "Cilësi e lartë, garanci prodhimi dhe dërgesë e shpejtë brenda 24 orëve.",
         "old_price": "2,800 Lekë",
         "price": "2,500 Lekë",
         "whatsapp_link": whatsapp_url,
         "views": 0,
-        "clicks": 0
+        "viewable_impressions": 0,
+        "clicks": 0,
+        "unmutes": 0,
+        "fullscreens": 0,
+        "video_completes": 0,
+        "mobile_views": 0,
+        "desktop_views": 0
     },
     "reklama-4": {
         "title": "Kokë dushi me disa opsione",
@@ -120,7 +140,13 @@ ADS_DATABASE = {
         "price": "1,499 Lekë",
         "whatsapp_link": whatsapp_url,
         "views": 0,
-        "clicks": 0
+        "viewable_impressions": 0,
+        "clicks": 0,
+        "unmutes": 0,
+        "fullscreens": 0,
+        "video_completes": 0,
+        "mobile_views": 0,
+        "desktop_views": 0
     },
     "reklama-5": {
         "title": "Antene Televizori me magnet",
@@ -130,7 +156,13 @@ ADS_DATABASE = {
         "price": "2,000 Lekë",
         "whatsapp_link": whatsapp_url,
         "views": 0,
-        "clicks": 0
+        "viewable_impressions": 0,
+        "clicks": 0,
+        "unmutes": 0,
+        "fullscreens": 0,
+        "video_completes": 0,
+        "mobile_views": 0,
+        "desktop_views": 0
     },
     "reklama-6": {
         "title": "Nderese rrobash",
@@ -140,7 +172,13 @@ ADS_DATABASE = {
         "price": "3,300 Lekë",
         "whatsapp_link": whatsapp_url,
         "views": 0,
-        "clicks": 0
+        "viewable_impressions": 0,
+        "clicks": 0,
+        "unmutes": 0,
+        "fullscreens": 0,
+        "video_completes": 0,
+        "mobile_views": 0,
+        "desktop_views": 0
     },
     "reklama-7": {
         "title": "Pompe lyerje elektrike",
@@ -150,7 +188,13 @@ ADS_DATABASE = {
         "price": "6,500 Lekë",
         "whatsapp_link": whatsapp_url,
         "views": 0,
-        "clicks": 0
+        "viewable_impressions": 0,
+        "clicks": 0,
+        "unmutes": 0,
+        "fullscreens": 0,
+        "video_completes": 0,
+        "mobile_views": 0,
+        "desktop_views": 0
     }
 }
 
@@ -193,7 +237,7 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (v10.2 - Poppins & Sponsorizuar)</h1>
+            <h1>🚀 Video Ad Server Live Dashboard (v11.0 Analytics Suite)</h1>
             <p>Serveri është aktiv.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
@@ -258,6 +302,8 @@ async def get_loader_script(request: Request):
         const rawAd = ADS_DATA[adId] || ADS_DATA["reklama-1"];
         if (!rawAd) return;
 
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
         const ad = {{
             title: rawAd.title,
             description: rawAd.description,
@@ -266,20 +312,24 @@ async def get_loader_script(request: Request):
             price: rawAd.price,
             whatsapp_link: rawAd.whatsapp_link,
             tracking_url: serverBase + "/track-click/" + adId,
-            view_url: serverBase + "/track-view/" + adId
+            event_url: serverBase + "/track-event/" + adId
         }};
 
         let viewCounted = false;
+        let viewableCounted = false;
+
+        function logEvent(eventType) {{
+            fetch(ad.event_url + "/" + eventType + (isMobile ? "?device=mobile" : "?device=desktop")).catch(e => {{}});
+        }}
 
         const container = document.createElement("div");
         container.style.width = "100%";
         container.style.margin = "14px 0";
 
         container.innerHTML = `
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-            <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800;900&display=swap" rel="stylesheet">
             <style>
+                @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800;900&display=swap');
+
                 .adsense-card-native * {{ box-sizing: border-box; }}
                 .adsense-card-native {{
                     border: 1px solid #dadce0;
@@ -414,7 +464,7 @@ async def get_loader_script(request: Request):
                     color: #4d5156;
                     margin: 0 0 6px 0;
                     line-height: 1.35;
-                    font-weight: 500;
+                    font-weight: 400;
                 }}
                 .adsense-card-native .price-row {{
                     display: flex;
@@ -527,12 +577,15 @@ async def get_loader_script(request: Request):
             video.playsInline = true;
             video.setAttribute("muted", "");
             video.setAttribute("playsinline", "");
+
+            video.addEventListener("ended", () => logEvent("video_complete"));
         }}
 
         if (fsBtn && video) {{
             fsBtn.addEventListener("click", function(e) {{
                 e.stopPropagation();
                 e.preventDefault();
+                logEvent("fullscreen");
 
                 if (typeof video.webkitEnterFullscreen === 'function') {{
                     video.webkitEnterFullscreen();
@@ -562,6 +615,7 @@ async def get_loader_script(request: Request):
                     video.muted = false;
                     video.volume = 1.0;
                     if (soundNotice) soundNotice.style.display = "none";
+                    logEvent("unmute");
                 }} else {{
                     video.muted = true;
                     if (soundNotice) soundNotice.style.display = "block";
@@ -584,16 +638,29 @@ async def get_loader_script(request: Request):
             }}
         }}
 
+        // Track MRC standard Viewable Impression (1+ second on screen)
+        let viewableTimer = null;
+
         const observer = new IntersectionObserver(function(entries) {{
             entries.forEach(entry => {{
                 if (entry.isIntersecting) {{
                     tryPlayVideo();
                     if (!viewCounted) {{
                         viewCounted = true;
-                        fetch(ad.view_url).catch(e => {{}});
+                        logEvent("view");
+                    }}
+                    if (!viewableCounted && !viewableTimer) {{
+                        viewableTimer = setTimeout(() => {{
+                            viewableCounted = true;
+                            logEvent("viewable");
+                        }}, 1000); // 1 continuous second on screen
                     }}
                 }} else {{
                     video.pause();
+                    if (viewableTimer) {{
+                        clearTimeout(viewableTimer);
+                        viewableTimer = null;
+                    }}
                 }}
             }});
         }}, {{ threshold: 0.2 }});
@@ -615,37 +682,75 @@ async def get_loader_script(request: Request):
     """
     return Response(content=js_code, media_type="application/javascript; charset=utf-8")
 
+@app.get("/track-event/{ad_id}/{event_type}")
+async def track_event(ad_id: str, event_type: str, device: str = "desktop"):
+    with stats_lock:
+        if ad_id in ADS_DATABASE:
+            ad = ADS_DATABASE[ad_id]
+            if event_type == "view":
+                ad["views"] += 1
+                if device == "mobile":
+                    ad["mobile_views"] += 1
+                else:
+                    ad["desktop_views"] += 1
+            elif event_type == "viewable":
+                ad["viewable_impressions"] += 1
+            elif event_type == "unmute":
+                ad["unmutes"] += 1
+            elif event_type == "fullscreen":
+                ad["fullscreens"] += 1
+            elif event_type == "video_complete":
+                ad["video_completes"] += 1
+            return {"status": "ok", "ad_id": ad_id, "event": event_type}
+    return {"status": "not_found"}
+
 @app.get("/track-view/{ad_id}")
 async def track_view(ad_id: str):
-    if ad_id in ADS_DATABASE:
-        ADS_DATABASE[ad_id]["views"] += 1
-        return {"status": "ok", "views": ADS_DATABASE[ad_id]["views"]}
+    with stats_lock:
+        if ad_id in ADS_DATABASE:
+            ADS_DATABASE[ad_id]["views"] += 1
+            return {"status": "ok", "views": ADS_DATABASE[ad_id]["views"]}
     return {"status": "not_found"}
 
 @app.get("/track-click/{ad_id}")
 async def track_click(ad_id: str):
-    if ad_id in ADS_DATABASE:
-        ADS_DATABASE[ad_id]["clicks"] += 1
-        return RedirectResponse(url=ADS_DATABASE[ad_id]["whatsapp_link"])
+    with stats_lock:
+        if ad_id in ADS_DATABASE:
+            ADS_DATABASE[ad_id]["clicks"] += 1
+            return RedirectResponse(url=ADS_DATABASE[ad_id]["whatsapp_link"])
     raise HTTPException(status_code=404, detail="Reklama nuk u gjet")
 
 @app.get("/stats", response_class=HTMLResponse)
 async def get_stats():
     rows = ""
-    for ad_id, ad in ADS_DATABASE.items():
-        views = ad['views']
-        clicks = ad['clicks']
-        ctr = f"{(clicks / views * 100):.1f}%" if views > 0 else "0.0%"
+    with stats_lock:
+        for ad_id, ad in ADS_DATABASE.items():
+            views = ad['views']
+            viewable = ad['viewable_impressions']
+            clicks = ad['clicks']
+            unmutes = ad['unmutes']
+            fullscreens = ad['fullscreens']
+            completes = ad['video_completes']
+            mob = ad['mobile_views']
+            desk = ad['desktop_views']
 
-        rows += f"""
-        <tr style="border-bottom: 1px solid #eee;">
-            <td style="padding: 14px; font-weight: bold; color: #333;">{ad_id}</td>
-            <td style="padding: 14px; color: #555;">{ad['title']}</td>
-            <td style="padding: 14px; color: #2980b9; font-weight: bold; font-size: 16px;">👁️ {views}</td>
-            <td style="padding: 14px; color: #27ae60; font-weight: bold; font-size: 16px;">🖱️ {clicks}</td>
-            <td style="padding: 14px; color: #e67e22; font-weight: bold; font-size: 16px;">📊 {ctr}</td>
-        </tr>
-        """
+            ctr = f"{(clicks / views * 100):.1f}%" if views > 0 else "0.0%"
+            viewability_rate = f"{(viewable / views * 100):.1f}%" if views > 0 else "0.0%"
+            completion_rate = f"{(completes / views * 100):.1f}%" if views > 0 else "0.0%"
+
+            rows += f"""
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 12px; font-weight: bold; color: #1a0dab;">{ad_id}</td>
+                <td style="padding: 12px; color: #333; font-weight: 600;">{ad['title']}</td>
+                <td style="padding: 12px; color: #2980b9; font-weight: bold;">👁️ {views}</td>
+                <td style="padding: 12px; color: #8e44ad; font-weight: bold;">🎯 {viewability_rate} <span style="font-size:11px; color:#666;">({viewable})</span></td>
+                <td style="padding: 12px; color: #27ae60; font-weight: bold;">🖱️ {clicks} <span style="font-size:11px; color:#27ae60;">({ctr})</span></td>
+                <td style="padding: 12px; color: #e67e22; font-weight: bold;">🔊 {unmutes}</td>
+                <td style="padding: 12px; color: #d35400; font-weight: bold;">⛶ {fullscreens}</td>
+                <td style="padding: 12px; color: #16a085; font-weight: bold;">🎬 {completion_rate} <span style="font-size:11px; color:#666;">({completes})</span></td>
+                <td style="padding: 12px; color: #555; font-size: 12px;">📱 {mob} | 💻 {desk}</td>
+            </tr>
+            """
 
     html_stats = f"""
     <!DOCTYPE html>
@@ -655,27 +760,31 @@ async def get_stats():
         <title>Ad Analytics Dashboard</title>
         <meta http-equiv="refresh" content="3">
         <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 40px; }}
-            .container {{ max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }}
-            h1 {{ color: #333; margin-top: 0; }}
-            p {{ color: #606770; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 25px; }}
-            th {{ background: #1877f2; color: white; text-align: left; padding: 14px; font-size: 14px; }}
+            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 30px; }}
+            .container {{ max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }}
+            h1 {{ color: #1a0dab; margin-top: 0; font-size: 24px; }}
+            p {{ color: #5f6368; font-size: 14px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
+            th {{ background: #1a73e8; color: white; text-align: left; padding: 12px; font-weight: 700; }}
             .refresh-note {{ font-size: 12px; color: #888; margin-top: 20px; }}
         </style>
     </head>
     <body>
         <div class="container">
-            <h1>📊 Ad Server Analytics & Live Views</h1>
-            <p>Statistikat e shfaqjeve (Views) dhe klikimeve (Clicks) në kohë reale.</p>
+            <h1>📊 Ad Server Advanced Analytics Suite</h1>
+            <p>Statistikat e shfaqjeve, shikueshmërisë (MRC Viewability), klikimeve, zërit, ekranit të plotë dhe pajisjeve në kohë reale.</p>
             <table>
                 <thead>
                     <tr>
-                        <th>ID e Reklamës</th>
-                        <th>Përshkrimi</th>
+                        <th>ID</th>
+                        <th>Titulli</th>
                         <th>Shfaqjet (Views)</th>
-                        <th>Klikimet (Clicks)</th>
-                        <th>Konvertimi (CTR)</th>
+                        <th>Shikueshmëria (Viewability)</th>
+                        <th>Klikimet (CTR)</th>
+                        <th>Zëri (Unmutes)</th>
+                        <th>Fullscreen</th>
+                        <th>Kompletime (100%)</th>
+                        <th>Pajisjet (Mob/Desk)</th>
                     </tr>
                 </thead>
                 <tbody>
