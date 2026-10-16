@@ -7,7 +7,7 @@ import uuid
 import os
 import json
 
-app = FastAPI(title="Video Ad Server", version="9.1.0 (Universal Safari Fullscreen Fix)")
+app = FastAPI(title="Video Ad Server", version="9.2.0 (Safari Muted Autoplay Fix)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -153,7 +153,7 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (v9.1 - Safari Fullscreen Fixed)</h1>
+            <h1>🚀 Video Ad Server Live Dashboard (v9.2)</h1>
             <p>Serveri është aktiv.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
@@ -482,6 +482,15 @@ async def get_loader_script(request: Request):
         const soundNotice = container.querySelector("#soundNotice");
         const fsBtn = container.querySelector("#fsBtn");
 
+        // Explicitly set DOM properties for Safari / iOS autoplay policy
+        if (video) {{
+            video.muted = true;
+            video.defaultMuted = true;
+            video.playsInline = true;
+            video.setAttribute("muted", "");
+            video.setAttribute("playsinline", "");
+        }}
+
         // Universal Cross-Browser Fullscreen Handler for Safari (iOS & Desktop), Chrome, Firefox & Edge
         if (fsBtn && video) {{
             fsBtn.addEventListener("click", function(e) {{
@@ -504,7 +513,10 @@ async def get_loader_script(request: Request):
 
         if (videoContainer && video) {{
             videoContainer.addEventListener("mouseleave", () => video.pause());
-            videoContainer.addEventListener("mouseenter", () => video.play().catch(e => {{}}));
+            videoContainer.addEventListener("mouseenter", () => {{
+                video.muted = true;
+                video.play().catch(e => {{}});
+            }});
         }}
 
         container.addEventListener("click", function(e) {{
@@ -520,10 +532,26 @@ async def get_loader_script(request: Request):
             }}
         }});
 
+        function tryPlayVideo() {{
+            if (!video) return;
+            video.muted = true;
+            video.playsInline = true;
+            const playPromise = video.play();
+            if (playPromise !== undefined) {{
+                playPromise.catch(error => {{
+                    // Fallback to muted user interaction trigger
+                    document.addEventListener('touchstart', function() {{
+                        video.muted = true;
+                        video.play().catch(e => {{}});
+                    }}, {{ once: true }});
+                }});
+            }}
+        }}
+
         const observer = new IntersectionObserver(function(entries) {{
             entries.forEach(entry => {{
                 if (entry.isIntersecting) {{
-                    video.play().catch(e => {{}});
+                    tryPlayVideo();
                     if (!viewCounted) {{
                         viewCounted = true;
                         fetch(ad.view_url).catch(e => {{}});
@@ -532,7 +560,7 @@ async def get_loader_script(request: Request):
                     video.pause();
                 }}
             }});
-        }}, {{ threshold: 0.2 }});
+        }}, {{ threshold: 0.15 }});
 
         observer.observe(container);
 
@@ -543,7 +571,7 @@ async def get_loader_script(request: Request):
                 const rect = container.getBoundingClientRect();
                 const isVisible = (rect.top < window.innerHeight && rect.bottom > 0);
                 if (isVisible) {{
-                    video.play().catch(e => {{}});
+                    tryPlayVideo();
                 }}
             }}
         }});
