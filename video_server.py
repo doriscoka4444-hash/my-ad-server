@@ -7,7 +7,7 @@ import uuid
 import os
 import json
 
-app = FastAPI(title="Video Ad Server", version="10.1.0 (Safari Instant Render Optimization)")
+app = FastAPI(title="Video Ad Server", version="10.2.0 (Sponsorizuar & Poppins Font)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -83,9 +83,9 @@ whatsapp_url = f"https://wa.me/355685846937?text={wa_message}"
 
 ADS_DATABASE = {
     "reklama-1": {
-        "title": "Zbulo më shumë rreth produktit",
+        "title": "Mbajtese per produkte siper lavatrices",
         "video_filename": "video1_fast.mp4",
-        "description": "Ofertë Ekskluzive: Kurseni sot me uljen tonë speciale!",
+        "description": "Pastro rremujen dhe vendos te gjitha produktet ne rregull",
         "old_price": "3,100 Lekë",
         "price": "2,800 Lekë",
         "whatsapp_link": whatsapp_url,
@@ -103,9 +103,9 @@ ADS_DATABASE = {
         "clicks": 0
     },
     "reklama-3": {
-        "title": "Ofertë e Muajit - Produkt Tepër i Kërkuar",
+        "title": "Zmadhues per celular",
         "video_filename": "video3_fast.mp4",
-        "description": "Cilësi e lartë, garanci prodhimi dhe dërgesë e shpejtë brenda 24 orëve.",
+        "description": "E shfaq ekranin e celularit me kualitet te larte.",
         "old_price": "2,800 Lekë",
         "price": "2,500 Lekë",
         "whatsapp_link": whatsapp_url,
@@ -193,7 +193,7 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (v10.1 - Safari Instant Speed)</h1>
+            <h1>🚀 Video Ad Server Live Dashboard (v10.2 - Poppins & Sponsorizuar)</h1>
             <p>Serveri është aktiv.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
@@ -276,6 +276,9 @@ async def get_loader_script(request: Request):
         container.style.margin = "14px 0";
 
         container.innerHTML = `
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800;900&display=swap" rel="stylesheet">
             <style>
                 .adsense-card-native * {{ box-sizing: border-box; }}
                 .adsense-card-native {{
@@ -283,7 +286,7 @@ async def get_loader_script(request: Request):
                     border-radius: 8px;
                     background: #ffffff;
                     width: 100%;
-                    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
                     position: relative;
                     overflow: hidden;
                     box-shadow: 0 1px 3px rgba(60,64,67,0.08);
@@ -348,11 +351,11 @@ async def get_loader_script(request: Request):
                     position: absolute;
                     bottom: 5px;
                     left: 5px;
-                    background: rgba(15, 20, 25, 0.88);
+                    background: rgba(15, 20, 25, 0.85);
                     color: #ffffff;
                     font-size: 9px;
                     font-weight: 700;
-                    padding: 2px 6px;
+                    padding: 2px 5px;
                     border-radius: 3px;
                     pointer-events: none;
                 }}
@@ -360,7 +363,7 @@ async def get_loader_script(request: Request):
                     position: absolute;
                     top: 5px;
                     right: 5px;
-                    background: rgba(15, 20, 25, 0.88);
+                    background: rgba(15, 20, 25, 0.85);
                     color: #ffffff;
                     border: none;
                     border-radius: 4px;
@@ -411,7 +414,7 @@ async def get_loader_script(request: Request):
                     color: #4d5156;
                     margin: 0 0 6px 0;
                     line-height: 1.35;
-                    font-weight: 400;
+                    font-weight: 500;
                 }}
                 .adsense-card-native .price-row {{
                     display: flex;
@@ -442,7 +445,7 @@ async def get_loader_script(request: Request):
                     padding: 8px 16px;
                     border-radius: 18px;
                     text-decoration: none;
-                    font-weight: 600;
+                    font-weight: 700;
                     font-size: 13px;
                     letter-spacing: -0.01em;
                     transition: background 0.2s, box-shadow 0.2s;
@@ -483,11 +486,11 @@ async def get_loader_script(request: Request):
             <div class="adsense-card-native" id="adCardNative">
                 <div class="adsense-header">
                     <span class="ad-badge">Ad</span>
-                    <span class="ad-sponsor">Sponsoruar &bull; Ofertë Ekskluzive</span>
+                    <span class="ad-sponsor">Sponsorizuar &bull; Ofertë Ekskluzive</span>
                 </div>
                 <div class="adsense-body">
                     <div class="video-container" id="videoContainer">
-                        <video id="adVideo" src="${{ad.video_url}}" autoplay muted playsinline loop preload="metadata" controlsList="nodownload" oncontextmenu="return false;"></video>
+                        <video id="adVideo" src="${{ad.video_url}}" autoplay muted playsinline loop preload="auto" controlsList="nodownload" oncontextmenu="return false;"></video>
                         <div id="soundNotice" class="sound-notice">Kliko per ze</div>
                         <button class="fullscreen-btn" id="fsBtn" title="Ekrani i plote">[ ]</button>
                     </div>
@@ -593,7 +596,7 @@ async def get_loader_script(request: Request):
                     video.pause();
                 }}
             }});
-        }}, {{ threshold: 0.15 }});
+        }}, {{ threshold: 0.2 }});
 
         observer.observe(container);
 
