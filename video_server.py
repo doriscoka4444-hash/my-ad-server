@@ -7,7 +7,7 @@ import uuid
 import os
 import json
 
-app = FastAPI(title="Video Ad Server", version="8.0.0 (Recursive File Search)")
+app = FastAPI(title="Video Ad Server", version="9.0.0 (Video Only - No WebP Posters)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,27 +19,21 @@ app.add_middleware(
 
 root_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Universal recursive file finder: searches root and all subfolders automatically
+# Universal recursive file finder for videos
 @app.get("/local-videos/{filename:path}")
 async def serve_local_video(filename: str):
-    # Check Desktop directory first (if running on local laptop)
     desktop_dir = "C:/Users/User/Desktop/videos"
     if os.path.exists(desktop_dir) and filename in os.listdir(desktop_dir):
         file_path = os.path.join(desktop_dir, filename)
         if filename.endswith(".mp4"):
             return FileResponse(file_path, media_type="video/mp4")
-        elif filename.endswith(".webp"):
-            return FileResponse(file_path, media_type="image/webp")
         return FileResponse(file_path)
 
-    # Recursive search through entire repository tree on cloud/Render
     for current_root, dirs, files in os.walk(root_dir):
         if filename in files:
             file_path = os.path.join(current_root, filename)
             if filename.endswith(".mp4"):
                 return FileResponse(file_path, media_type="video/mp4")
-            elif filename.endswith(".webp"):
-                return FileResponse(file_path, media_type="image/webp")
             return FileResponse(file_path)
 
     raise HTTPException(status_code=404, detail=f"File {filename} not found in repository")
@@ -51,7 +45,6 @@ ADS_DATABASE = {
     "reklama-1": {
         "title": "Zbulo më shumë rreth produktit",
         "video_filename": "video1_fast.mp4",
-        "poster_filename": "video1.webp",
         "description": "Ofertë Ekskluzive: Kurseni sot me uljen tonë speciale!",
         "old_price": "3,100 Lekë",
         "price": "2,800 Lekë",
@@ -62,7 +55,6 @@ ADS_DATABASE = {
     "reklama-2": {
         "title": "Mbështetëse për Gju - Lehtësim i Dhimbjeve",
         "video_filename": "gjuri_fast.mp4",
-        "poster_filename": "gjuri.webp",
         "description": "Zgjidhje ideale për dhimbjet e gjurit dhe rikuperim të shpejtë.",
         "old_price": "3,900 Lekë",
         "price": "3,500 Lekë",
@@ -73,7 +65,6 @@ ADS_DATABASE = {
     "reklama-3": {
         "title": "Ofertë e Muajit - Produkt Tepër i Kërkuar",
         "video_filename": "video3_fast.mp4",
-        "poster_filename": "video3.webp",
         "description": "Cilësi e lartë, garanci prodhimi dhe dërgesë e shpejtë brenda 24 orëve.",
         "old_price": "2,800 Lekë",
         "price": "2,500 Lekë",
@@ -84,7 +75,6 @@ ADS_DATABASE = {
     "reklama-4": {
         "title": "Kokë dushi me disa opsione",
         "video_filename": "dushi_fast.mp4",
-        "poster_filename": "dushi.webp",
         "description": "Kokë dushi me shumë opsione. Ofertë: 2 Copë vetëm 2,499 Lekë!",
         "old_price": "1,699 Lekë",
         "price": "1,499 Lekë",
@@ -95,7 +85,6 @@ ADS_DATABASE = {
     "reklama-5": {
         "title": "Antene Televizori me magnet",
         "video_filename": "televizori_fast.mp4",
-        "poster_filename": "televizori.webp",
         "description": "Per te gjitha stacionet televizive tokesore, eshte me magnet.",
         "old_price": "2,200 Lekë",
         "price": "2,000 Lekë",
@@ -106,7 +95,6 @@ ADS_DATABASE = {
     "reklama-6": {
         "title": "Nderese rrobash",
         "video_filename": "rroba_fast.mp4",
-        "poster_filename": "rroba.webp",
         "description": "Nuk krijon rremuje dhe shume e lehte per tu perdorur.",
         "old_price": "3,800 Lekë",
         "price": "3,300 Lekë",
@@ -117,7 +105,6 @@ ADS_DATABASE = {
     "reklama-7": {
         "title": "Pompe lyerje elektrike",
         "video_filename": "pompa_fast.mp4",
-        "poster_filename": "pompa.webp",
         "description": "Mos u lodhni duke lyer muret me dore, pompe elektrike per ju,me super cmim.",
         "old_price": "7,500 Lekë",
         "price": "6,500 Lekë",
@@ -166,8 +153,8 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (v8.0)</h1>
-            <p>Serveri është aktiv dhe kërkon videot në të gjithë projektin automatikisht.</p>
+            <h1>🚀 Video Ad Server Live Dashboard (v9.0 - Video Only)</h1>
+            <p>Serveri është aktiv dhe po shërben vetëm videot MP4 direkte.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
             </div>
@@ -186,7 +173,6 @@ async def get_loader_script(request: Request):
             "title": ad["title"],
             "description": ad["description"],
             "video_filename": ad["video_filename"],
-            "poster_filename": ad.get("poster_filename", "video1.webp"),
             "old_price": ad["old_price"],
             "price": ad["price"],
             "whatsapp_link": ad["whatsapp_link"]
@@ -236,7 +222,6 @@ async def get_loader_script(request: Request):
             title: rawAd.title,
             description: rawAd.description,
             video_url: serverBase + "/local-videos/" + rawAd.video_filename,
-            poster_url: serverBase + "/local-videos/" + rawAd.poster_filename,
             old_price: rawAd.old_price,
             price: rawAd.price,
             whatsapp_link: rawAd.whatsapp_link,
@@ -466,7 +451,7 @@ async def get_loader_script(request: Request):
                 </div>
                 <div class="adsense-body">
                     <div class="video-container" id="videoContainer">
-                        <video id="adVideo" src="${{ad.video_url}}" poster="${{ad.poster_url}}" autoplay muted playsinline loop preload="metadata" controlsList="nodownload" oncontextmenu="return false;"></video>
+                        <video id="adVideo" src="${{ad.video_url}}" autoplay muted playsinline loop preload="auto" controlsList="nodownload" oncontextmenu="return false;"></video>
                         <div id="soundNotice" class="sound-notice">Kliko per ze</div>
                         <button class="fullscreen-btn" id="fsBtn" title="Ekrani i plote">[ ]</button>
                     </div>
