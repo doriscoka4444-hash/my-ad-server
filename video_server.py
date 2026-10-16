@@ -7,7 +7,7 @@ import uuid
 import os
 import json
 
-app = FastAPI(title="Video Ad Server", version="10.0.0 (HTTP 206 Range Streaming for Safari)")
+app = FastAPI(title="Video Ad Server", version="10.1.0 (Safari Instant Render Optimization)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,7 +29,7 @@ def find_file_recursive(filename: str):
             return os.path.join(current_root, filename)
     return None
 
-# HTTP 206 Partial Content Range Streaming required by Safari & iOS
+# Fast HTTP 206 Partial Content Range Streaming for Safari
 @app.get("/local-videos/{filename:path}")
 async def serve_local_video(filename: str, request: Request, range: str = Header(None)):
     file_path = find_file_recursive(filename)
@@ -39,11 +39,9 @@ async def serve_local_video(filename: str, request: Request, range: str = Header
     file_size = os.path.getsize(file_path)
     media_type = "video/mp4" if filename.endswith(".mp4") else ("image/webp" if filename.endswith(".webp") else "application/octet-stream")
 
-    # If not a video or no Range header requested, return standard response with Accept-Ranges header
     if not range or not filename.endswith(".mp4"):
         return FileResponse(file_path, media_type=media_type, headers={"Accept-Ranges": "bytes"})
 
-    # Parse Range Header (e.g. bytes=0- or bytes=0-1024)
     try:
         units, range_str = range.strip().split("=")
         start_str, end_str = range_str.split("-")
@@ -75,7 +73,7 @@ async def serve_local_video(filename: str, request: Request, range: str = Header
         "Accept-Ranges": "bytes",
         "Content-Length": str(chunk_size),
         "Content-Type": media_type,
-        "Cache-Control": "public, max-age=3600"
+        "Cache-Control": "public, max-age=31536000, immutable"
     }
 
     return StreamingResponse(iter_file(), status_code=206, headers=headers)
@@ -195,7 +193,7 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (v10.0 - Safari HTTP 206 Streaming)</h1>
+            <h1>🚀 Video Ad Server Live Dashboard (v10.1 - Safari Instant Speed)</h1>
             <p>Serveri është aktiv.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
@@ -279,15 +277,13 @@ async def get_loader_script(request: Request):
 
         container.innerHTML = `
             <style>
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-
                 .adsense-card-native * {{ box-sizing: border-box; }}
                 .adsense-card-native {{
                     border: 1px solid #dadce0;
                     border-radius: 8px;
                     background: #ffffff;
                     width: 100%;
-                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
                     position: relative;
                     overflow: hidden;
                     box-shadow: 0 1px 3px rgba(60,64,67,0.08);
@@ -352,12 +348,11 @@ async def get_loader_script(request: Request):
                     position: absolute;
                     bottom: 5px;
                     left: 5px;
-                    background: rgba(15, 20, 25, 0.85);
-                    backdrop-filter: blur(4px);
+                    background: rgba(15, 20, 25, 0.88);
                     color: #ffffff;
                     font-size: 9px;
                     font-weight: 700;
-                    padding: 2px 5px;
+                    padding: 2px 6px;
                     border-radius: 3px;
                     pointer-events: none;
                 }}
@@ -365,8 +360,7 @@ async def get_loader_script(request: Request):
                     position: absolute;
                     top: 5px;
                     right: 5px;
-                    background: rgba(15, 20, 25, 0.85);
-                    backdrop-filter: blur(4px);
+                    background: rgba(15, 20, 25, 0.88);
                     color: #ffffff;
                     border: none;
                     border-radius: 4px;
@@ -493,7 +487,7 @@ async def get_loader_script(request: Request):
                 </div>
                 <div class="adsense-body">
                     <div class="video-container" id="videoContainer">
-                        <video id="adVideo" src="${{ad.video_url}}" autoplay muted playsinline loop preload="auto" controlsList="nodownload" oncontextmenu="return false;"></video>
+                        <video id="adVideo" src="${{ad.video_url}}" autoplay muted playsinline loop preload="metadata" controlsList="nodownload" oncontextmenu="return false;"></video>
                         <div id="soundNotice" class="sound-notice">Kliko per ze</div>
                         <button class="fullscreen-btn" id="fsBtn" title="Ekrani i plote">[ ]</button>
                     </div>
@@ -599,7 +593,7 @@ async def get_loader_script(request: Request):
                     video.pause();
                 }}
             }});
-        }}, {{ threshold: 0.2 }});
+        }}, {{ threshold: 0.15 }});
 
         observer.observe(container);
 
