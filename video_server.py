@@ -1,6 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import urllib.parse
 import random
@@ -8,7 +7,7 @@ import uuid
 import os
 import json
 
-app = FastAPI(title="Video Ad Server", version="7.3.0 (Root & Subfolder Auto-Detector)")
+app = FastAPI(title="Video Ad Server", version="8.0.0 (Recursive File Search)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,26 +17,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Smart directory finder: checks Desktop, ./videos, ./local-videos, and repo root
 root_dir = os.path.dirname(os.path.abspath(__file__))
-videos_sub = os.path.join(root_dir, "videos")
-local_videos_sub = os.path.join(root_dir, "local-videos")
-desktop_videos = "C:/Users/User/Desktop/videos"
 
-VIDEOS_DIR = None
+# Universal recursive file finder: searches root and all subfolders automatically
+@app.get("/local-videos/{filename:path}")
+async def serve_local_video(filename: str):
+    # Check Desktop directory first (if running on local laptop)
+    desktop_dir = "C:/Users/User/Desktop/videos"
+    if os.path.exists(desktop_dir) and filename in os.listdir(desktop_dir):
+        file_path = os.path.join(desktop_dir, filename)
+        if filename.endswith(".mp4"):
+            return FileResponse(file_path, media_type="video/mp4")
+        elif filename.endswith(".webp"):
+            return FileResponse(file_path, media_type="image/webp")
+        return FileResponse(file_path)
 
-if os.path.exists(desktop_videos) and any(f.endswith(".mp4") for f in os.listdir(desktop_videos)):
-    VIDEOS_DIR = desktop_videos
-elif os.path.exists(videos_sub) and any(f.endswith(".mp4") for f in os.listdir(videos_sub)):
-    VIDEOS_DIR = videos_sub
-elif os.path.exists(local_videos_sub) and any(f.endswith(".mp4") for f in os.listdir(local_videos_sub)):
-    VIDEOS_DIR = local_videos_sub
-elif any(f.endswith(".mp4") for f in os.listdir(root_dir)):
-    VIDEOS_DIR = root_dir
-else:
-    VIDEOS_DIR = root_dir
+    # Recursive search through entire repository tree on cloud/Render
+    for current_root, dirs, files in os.walk(root_dir):
+        if filename in files:
+            file_path = os.path.join(current_root, filename)
+            if filename.endswith(".mp4"):
+                return FileResponse(file_path, media_type="video/mp4")
+            elif filename.endswith(".webp"):
+                return FileResponse(file_path, media_type="image/webp")
+            return FileResponse(file_path)
 
-app.mount("/local-videos", StaticFiles(directory=VIDEOS_DIR), name="local-videos")
+    raise HTTPException(status_code=404, detail=f"File {filename} not found in repository")
 
 wa_message = urllib.parse.quote("Dua te di me shume rreth ketij produktit!")
 whatsapp_url = f"https://wa.me/355685846937?text={wa_message}"
@@ -161,8 +166,8 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard</h1>
-            <p>Serveri është aktiv dhe po shërbehet nga folderi: <code>{VIDEOS_DIR}</code></p>
+            <h1>🚀 Video Ad Server Live Dashboard (v8.0)</h1>
+            <p>Serveri është aktiv dhe kërkon videot në të gjithë projektin automatikisht.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
             </div>
