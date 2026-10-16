@@ -8,7 +8,7 @@ import uuid
 import os
 import json
 
-app = FastAPI(title="Video Ad Server", version="7.0.0 (Production Ready for Render)")
+app = FastAPI(title="Video Ad Server", version="7.2.0 (Smart Video Dir Resolution)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,15 +18,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DESKTOP_VIDEOS_DIR = "C:/Users/User/Desktop/videos"
-LOCAL_VIDEOS_DIR = os.path.join(os.path.dirname(__file__), "videos")
+# Smart directory resolution: checks Desktop, ./videos, ./local-videos, and repo root
+candidate_dirs = [
+    "C:/Users/User/Desktop/videos",
+    os.path.join(os.path.dirname(__file__), "videos"),
+    os.path.join(os.path.dirname(__file__), "local-videos"),
+    os.path.dirname(__file__)
+]
 
-if os.path.exists(DESKTOP_VIDEOS_DIR):
-    VIDEOS_DIR = DESKTOP_VIDEOS_DIR
-else:
-    VIDEOS_DIR = LOCAL_VIDEOS_DIR
+VIDEOS_DIR = None
+for d in candidate_dirs:
+    try:
+        if os.path.exists(d) and any(f.endswith(".mp4") for f in os.listdir(d)):
+            VIDEOS_DIR = d
+            break
+    except Exception:
+        pass
 
-os.makedirs(VIDEOS_DIR, exist_ok=True)
+if not VIDEOS_DIR:
+    VIDEOS_DIR = os.path.join(os.path.dirname(__file__), "videos")
+    os.makedirs(VIDEOS_DIR, exist_ok=True)
 
 app.mount("/local-videos", StaticFiles(directory=VIDEOS_DIR), name="local-videos")
 
@@ -118,6 +129,51 @@ def get_server_base(request: Request) -> str:
     if env_base:
         return env_base.rstrip("/")
     return str(request.base_url).rstrip("/")
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    server_base = get_server_base(request)
+    ads_list = ""
+    for ad_id, ad in ADS_DATABASE.items():
+        ads_list += f"""
+        <div style="background: #fff; padding: 20px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <h3 style="margin-top:0; color: #1877f2;">{ad['title']} ({ad_id})</h3>
+            <p>{ad['description']}</p>
+            <p><strong>Video:</strong> {ad['video_filename']} | <strong>Çmimi:</strong> {ad['price']} <span style="text-decoration: line-through; color: #888;">{ad['old_price']}</span></p>
+            <div style="background: #f0f2f5; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 13px; word-break: break-all;">
+                &lt;script async src="{server_base}/loader.js" data-ad-slot="{ad_id}"&gt;&lt;/script&gt;
+            </div>
+        </div>
+        """
+
+    return HTMLResponse(content=f"""
+    <!DOCTYPE html>
+    <html lang="sq">
+    <head>
+        <meta charset="UTF-8">
+        <title>Video Ad Server Dashboard</title>
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 40px; color: #333; }}
+            .container {{ max-width: 900px; margin: 0 auto; }}
+            h1 {{ color: #1a1a1a; }}
+            .nav-links {{ margin: 20px 0; }}
+            .nav-links a {{ background: #27ae60; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-right: 10px; display: inline-block; }}
+            .nav-links a.stats {{ background: #e67e22; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🚀 Video Ad Server Live Dashboard</h1>
+            <p>Serveri është aktiv dhe po shërbehet nga folderi: <code>{VIDEOS_DIR}</code></p>
+            <div class="nav-links">
+                <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
+            </div>
+            <h2>Reklamat e Dispozicionit:</h2>
+            {ads_list}
+        </div>
+    </body>
+    </html>
+    """, media_type="text/html; charset=utf-8")
 
 @app.get("/loader.js")
 async def get_loader_script(request: Request):
