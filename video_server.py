@@ -10,7 +10,7 @@ import os
 import json
 import threading
 
-app = FastAPI(title="Video Ad Server", version="21.0.0 (Ultra-Optimized Redis Limits)")
+app = FastAPI(title="Video Ad Server", version="22.0.0 (Persistent Global JSON Bug Fix)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,31 +26,36 @@ stats_lock = threading.Lock()
 KV_URL = os.getenv("KV_REST_API_URL") or os.getenv("UPSTASH_REDIS_REST_URL") or os.getenv("REDIS_REST_URL")
 KV_TOKEN = os.getenv("KV_REST_API_TOKEN") or os.getenv("UPSTASH_REDIS_REST_TOKEN") or os.getenv("REDIS_REST_TOKEN")
 
-def kv_incr(key: str, amount: int = 1) -> int:
+# Global Last Known Good Stats cache (prevents stats from ever dropping to 0)
+LAST_KNOWN_GOOD_STATS = {}
+
+def save_global_stats_kv(data_dict: dict):
     if not KV_URL or not KV_TOKEN:
-        return 0
+        return
     try:
-        req_url = f"{KV_URL.rstrip('/')}/incrby/{key}/{amount}"
+        json_str = urllib.parse.quote(json.dumps(data_dict, ensure_ascii=False))
+        req_url = f"{KV_URL.rstrip('/')}/set/global_ad_stats_v2/{json_str}"
         req = urllib.request.Request(req_url, headers={"Authorization": f"Bearer {KV_TOKEN}"}, method="POST")
         with urllib.request.urlopen(req, timeout=2) as resp:
-            data = json.loads(resp.read().decode())
-            val = data.get("result")
-            return int(val) if val is not None else 0
+            pass
     except Exception:
-        return 0
+        pass
 
-def kv_get(key: str) -> int:
+def load_global_stats_kv() -> dict:
     if not KV_URL or not KV_TOKEN:
-        return 0
+        return {}
     try:
-        req_url = f"{KV_URL.rstrip('/')}/get/{key}"
+        req_url = f"{KV_URL.rstrip('/')}/get/global_ad_stats_v2"
         req = urllib.request.Request(req_url, headers={"Authorization": f"Bearer {KV_TOKEN}"})
         with urllib.request.urlopen(req, timeout=2) as resp:
             data = json.loads(resp.read().decode())
             val = data.get("result")
-            return int(val) if val is not None else 0
+            if val:
+                decoded_str = urllib.parse.unquote(val)
+                return json.loads(decoded_str)
     except Exception:
-        return 0
+        pass
+    return {}
 
 def find_file_recursive(filename: str):
     desktop_dir = "C:/Users/User/Desktop/videos"
@@ -328,7 +333,7 @@ async def home(request: Request):
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
             </div>
-            <h2>Reklamat e Dispozicionit:</h2>
+            22.0.0
             {ads_list}
         </div>
     </body>
@@ -777,25 +782,21 @@ async def track_event(ad_id: str, event_type: str, device: str = "desktop"):
             ad = ADS_DATABASE[ad_id]
             if event_type == "view":
                 ad["views"] += 1
-                kv_incr(f"stats:{ad_id}:views")
                 if device == "mobile":
                     ad["mobile_views"] += 1
-                    kv_incr(f"stats:{ad_id}:mobile_views")
                 else:
                     ad["desktop_views"] += 1
-                    kv_incr(f"stats:{ad_id}:desktop_views")
             elif event_type == "viewable":
                 ad["viewable_impressions"] += 1
-                kv_incr(f"stats:{ad_id}:viewable_impressions")
             elif event_type == "unmute":
                 ad["unmutes"] += 1
-                kv_incr(f"stats:{ad_id}:unmutes")
             elif event_type == "fullscreen":
                 ad["fullscreens"] += 1
-                kv_incr(f"stats:{ad_id}:fullscreens")
             elif event_type == "video_complete":
                 ad["video_completes"] += 1
-                kv_incr(f"stats:{ad_id}:video_completes")
+
+            # Sync persistent snapshot to Redis
+            save_global_stats_kv(ADS_DATABASE)
             return {"status": "ok", "ad_id": ad_id, "event": event_type}
     return {"status": "not_found"}
 
@@ -806,7 +807,7 @@ async def track_view(ad_id: str):
     with stats_lock:
         if ad_id in ADS_DATABASE:
             ADS_DATABASE[ad_id]["views"] += 1
-            kv_incr(f"stats:{ad_id}:views")
+            save_global_stats_kv(ADS_DATABASE)
             return {"status": "ok", "views": ADS_DATABASE[ad_id]["views"]}
     return {"status": "not_found"}
 
@@ -817,7 +818,7 @@ async def track_click(ad_id: str):
     with stats_lock:
         if ad_id in ADS_DATABASE:
             ADS_DATABASE[ad_id]["clicks"] += 1
-            kv_incr(f"stats:{ad_id}:clicks")
+            save_global_stats_kv(ADS_DATABASE)
             return RedirectResponse(url=ADS_DATABASE[ad_id]["whatsapp_link"])
     raise HTTPException(status_code=404, detail="Reklama nuk u gjet")
 
@@ -825,17 +826,33 @@ async def track_click(ad_id: str):
 @app.get("/api/stats", response_class=HTMLResponse)
 @app.get("/api/index/stats", response_class=HTMLResponse)
 async def get_stats():
+    global LAST_KNOWN_GOOD_STATS
     rows = ""
     with stats_lock:
-        for ad_id, ad in ADS_DATABASE.items():
-            views = max(ad['views'], kv_get(f"stats:{ad_id}:views"))
-            viewable = max(ad['viewable_impressions'], kv_get(f"stats:{ad_id}:viewable_impressions"))
-            clicks = max(ad['clicks'], kv_get(f"stats:{ad_id}:clicks"))
-            unmutes = max(ad['unmutes'], kv_get(f"stats:{ad_id}:unmutes"))
-            fullscreens = max(ad['fullscreens'], kv_get(f"stats:{ad_id}:fullscreens"))
-            completes = max(ad['video_completes'], kv_get(f"stats:{ad_id}:video_completes"))
-            mob = max(ad['mobile_views'], kv_get(f"stats:{ad_id}:mobile_views"))
-            desk = max(ad['desktop_views'], kv_get(f"stats:{ad_id}:desktop_views"))
+        # Load global persistent snapshot from Redis
+        kv_data = load_global_stats_kv()
+        if kv_data:
+            # Update RAM & Last Known Good Stats with persistent Redis snapshot
+            for ad_id, ad_obj in kv_data.items():
+                if ad_id in ADS_DATABASE:
+                    for k, val in ad_obj.items():
+                        if isinstance(val, (int, float)):
+                            ADS_DATABASE[ad_id][k] = max(ADS_DATABASE[ad_id].get(k, 0), val)
+            LAST_KNOWN_GOOD_STATS = json.loads(json.dumps(ADS_DATABASE, ensure_ascii=False))
+        elif not LAST_KNOWN_GOOD_STATS:
+            LAST_KNOWN_GOOD_STATS = json.loads(json.dumps(ADS_DATABASE, ensure_ascii=False))
+
+        target_db = LAST_KNOWN_GOOD_STATS if LAST_KNOWN_GOOD_STATS else ADS_DATABASE
+
+        for ad_id, ad in target_db.items():
+            views = ad.get('views', 0)
+            viewable = ad.get('viewable_impressions', 0)
+            clicks = ad.get('clicks', 0)
+            unmutes = ad.get('unmutes', 0)
+            fullscreens = ad.get('fullscreens', 0)
+            completes = ad.get('video_completes', 0)
+            mob = ad.get('mobile_views', 0)
+            desk = ad.get('desktop_views', 0)
 
             ctr = f"{(clicks / views * 100):.1f}%" if views > 0 else "0.0%"
             viewability_rate = f"{(viewable / views * 100):.1f}%" if views > 0 else "0.0%"
@@ -844,7 +861,7 @@ async def get_stats():
             rows += f"""
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding: 12px; font-weight: bold; color: #1a0dab;">{ad_id}</td>
-                <td style="padding: 12px; color: #333; font-weight: 600;">{ad['title']}</td>
+                <td style="padding: 12px; color: #333; font-weight: 600;">{ad.get('title', '')}</td>
                 <td style="padding: 12px; color: #2980b9; font-weight: bold;">👁️ {views}</td>
                 <td style="padding: 12px; color: #8e44ad; font-weight: bold;">🎯 {viewability_rate} <span style="font-size:11px; color:#666;">({viewable})</span></td>
                 <td style="padding: 12px; color: #27ae60; font-weight: bold;">🖱️ {clicks} <span style="font-size:11px; color:#27ae60;">({ctr})</span></td>
@@ -879,7 +896,7 @@ async def get_stats():
             <div class="header-bar">
                 <div>
                     <h1>📊 Ad Server Advanced Analytics Suite</h1>
-                    <p>Statistikat e shfaqjeve, shikueshmërisë, klikimeve dhe zërit me ruajtje permanente në Redis.</p>
+                    <p>Statistikat e shfaqjeve, shikueshmërisë, klikimeve dhe zërit me ruajtje permanente.</p>
                 </div>
                 <button onclick="window.location.reload();" class="refresh-btn">🔄 Rifresko Statistikat</button>
             </div>
