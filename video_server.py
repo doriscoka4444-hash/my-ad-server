@@ -8,7 +8,7 @@ import os
 import json
 import threading
 
-app = FastAPI(title="Video Ad Server", version="18.0.0 (Vercel Serverless Aliases)")
+app = FastAPI(title="Video Ad Server", version="19.0.0 (Ultra-Fast 0ms Optimization)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,7 +44,10 @@ async def serve_local_video(filename: str, request: Request, range: str = Header
     media_type = "video/mp4" if filename.endswith(".mp4") else ("image/webp" if filename.endswith(".webp") else "application/octet-stream")
 
     if not range or not filename.endswith(".mp4"):
-        return FileResponse(file_path, media_type=media_type, headers={"Accept-Ranges": "bytes"})
+        return FileResponse(file_path, media_type=media_type, headers={
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=31536000, immutable"
+        })
 
     try:
         units, range_str = range.strip().split("=")
@@ -289,8 +292,8 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (Vercel Active)</h1>
-            <p>Serveri është aktiv.</p>
+            <h1>🚀 Video Ad Server Live Dashboard (Ultra-Fast 0ms Engine)</h1>
+            <p>Serveri është aktiv me shpejtësi maksimale.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
             </div>
@@ -381,21 +384,20 @@ async def get_loader_script(request: Request):
 
         container.innerHTML = `
             <style>
-                @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800;900&display=swap');
-
                 .adsense-card-native * {{ box-sizing: border-box; }}
                 .adsense-card-native {{
                     border: 1px solid #dadce0;
                     border-radius: 8px;
                     background: #ffffff;
                     width: 100%;
-                    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
                     position: relative;
                     overflow: hidden;
                     box-shadow: 0 1px 3px rgba(60,64,67,0.08);
-                    transition: border-color 0.2s, box-shadow 0.2s;
+                    transition: border-color 0.15s ease, box-shadow 0.15s ease;
                     -webkit-font-smoothing: antialiased;
                     -moz-osx-font-smoothing: grayscale;
+                    contain: content;
                 }}
                 .adsense-card-native:hover {{
                     border-color: #bdc1c6;
@@ -454,11 +456,11 @@ async def get_loader_script(request: Request):
                     position: absolute;
                     bottom: 5px;
                     left: 5px;
-                    background: rgba(15, 20, 25, 0.85);
+                    background: rgba(15, 20, 25, 0.88);
                     color: #ffffff;
                     font-size: 9px;
                     font-weight: 700;
-                    padding: 2px 5px;
+                    padding: 2px 6px;
                     border-radius: 3px;
                     pointer-events: none;
                 }}
@@ -466,7 +468,7 @@ async def get_loader_script(request: Request):
                     position: absolute;
                     top: 5px;
                     right: 5px;
-                    background: rgba(15, 20, 25, 0.85);
+                    background: rgba(15, 20, 25, 0.88);
                     color: #ffffff;
                     border: none;
                     border-radius: 4px;
@@ -551,7 +553,7 @@ async def get_loader_script(request: Request):
                     font-weight: 600;
                     font-size: 13px;
                     letter-spacing: -0.01em;
-                    transition: background 0.2s, box-shadow 0.2s;
+                    transition: background 0.15s ease, box-shadow 0.15s ease;
                     width: fit-content;
                 }}
                 .adsense-card-native .cta-btn:hover {{
@@ -593,7 +595,7 @@ async def get_loader_script(request: Request):
                 </div>
                 <div class="adsense-body">
                     <div class="video-container" id="videoContainer">
-                        <video id="adVideo" src="${{ad.video_url}}" autoplay muted playsinline loop preload="auto" controlsList="nodownload" oncontextmenu="return false;"></video>
+                        <video id="adVideo" src="${{ad.video_url}}" autoplay muted playsinline loop preload="metadata" controlsList="nodownload" oncontextmenu="return false;"></video>
                         <div id="soundNotice" class="sound-notice">Kliko per ze</div>
                         <button class="fullscreen-btn" id="fsBtn" title="Ekrani i plote">[ ]</button>
                     </div>
@@ -712,7 +714,7 @@ async def get_loader_script(request: Request):
                     }}
                 }}
             }});
-        }}, {{ threshold: 0.2 }});
+        }}, {{ threshold: 0.15 }});
 
         observer.observe(container);
 
@@ -729,7 +731,11 @@ async def get_loader_script(request: Request):
         }});
     }})();
     """
-    return Response(content=js_code, media_type="application/javascript; charset=utf-8")
+    return Response(
+        content=js_code,
+        media_type="application/javascript; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800"}
+    )
 
 @app.get("/track-event/{ad_id}/{event_type}")
 @app.get("/api/track-event/{ad_id}/{event_type}")
