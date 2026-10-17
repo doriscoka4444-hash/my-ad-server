@@ -10,7 +10,7 @@ import os
 import json
 import threading
 
-app = FastAPI(title="Video Ad Server", version="20.1.0 (Vercel Redis & Upstash Supported)")
+app = FastAPI(title="Video Ad Server", version="21.0.0 (Ultra-Optimized Redis Limits)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,7 +23,6 @@ app.add_middleware(
 root_dir = os.path.dirname(os.path.abspath(__file__))
 stats_lock = threading.Lock()
 
-# Vercel Redis & Upstash REST API Credentials (supports both Vercel KV and Upstash Redis)
 KV_URL = os.getenv("KV_REST_API_URL") or os.getenv("UPSTASH_REDIS_REST_URL") or os.getenv("REDIS_REST_URL")
 KV_TOKEN = os.getenv("KV_REST_API_TOKEN") or os.getenv("UPSTASH_REDIS_REST_TOKEN") or os.getenv("REDIS_REST_TOKEN")
 
@@ -33,7 +32,7 @@ def kv_incr(key: str, amount: int = 1) -> int:
     try:
         req_url = f"{KV_URL.rstrip('/')}/incrby/{key}/{amount}"
         req = urllib.request.Request(req_url, headers={"Authorization": f"Bearer {KV_TOKEN}"}, method="POST")
-        with urllib.request.urlopen(req, timeout=3) as resp:
+        with urllib.request.urlopen(req, timeout=2) as resp:
             data = json.loads(resp.read().decode())
             val = data.get("result")
             return int(val) if val is not None else 0
@@ -46,7 +45,7 @@ def kv_get(key: str) -> int:
     try:
         req_url = f"{KV_URL.rstrip('/')}/get/{key}"
         req = urllib.request.Request(req_url, headers={"Authorization": f"Bearer {KV_TOKEN}"})
-        with urllib.request.urlopen(req, timeout=3) as resp:
+        with urllib.request.urlopen(req, timeout=2) as resp:
             data = json.loads(resp.read().decode())
             val = data.get("result")
             return int(val) if val is not None else 0
@@ -324,8 +323,8 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (Redis Persistent Active)</h1>
-            <p>Serveri është aktiv me ruajtje permanente në Vercel Redis Database.</p>
+            <h1>🚀 Video Ad Server Live Dashboard</h1>
+            <p>Serveri është aktiv me ruajtje permanente të optimizuar.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
             </div>
@@ -862,12 +861,14 @@ async def get_stats():
     <head>
         <meta charset="UTF-8">
         <title>Ad Analytics Dashboard</title>
-        <meta http-equiv="refresh" content="3">
         <style>
             body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 40px; }}
             .container {{ max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }}
-            h1 {{ color: #1a0dab; margin-top: 0; font-size: 24px; }}
-            p {{ color: #5f6368; font-size: 14px; }}
+            .header-bar {{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }}
+            h1 {{ color: #1a0dab; margin: 0; font-size: 24px; }}
+            .refresh-btn {{ background: #1a73e8; color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 13px; border: none; cursor: pointer; }}
+            .refresh-btn:hover {{ background: #1557b0; }}
+            p {{ color: #5f6368; font-size: 14px; margin-top: 5px; }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
             th {{ background: #1a73e8; color: white; text-align: left; padding: 12px; font-weight: 700; }}
             .refresh-note {{ font-size: 12px; color: #888; margin-top: 20px; }}
@@ -875,8 +876,13 @@ async def get_stats():
     </head>
     <body>
         <div class="container">
-            <h1>📊 Ad Server Advanced Analytics Suite (Vercel Persistent Active)</h1>
-            <p>Statistikat e shfaqjeve, shikueshmërisë (MRC Viewability), klikimeve, zërit, ekranit të plotë dhe pajisjeve me ruajtje permanente në Vercel Redis/Upstash Database.</p>
+            <div class="header-bar">
+                <div>
+                    <h1>📊 Ad Server Advanced Analytics Suite</h1>
+                    <p>Statistikat e shfaqjeve, shikueshmërisë, klikimeve dhe zërit me ruajtje permanente në Redis.</p>
+                </div>
+                <button onclick="window.location.reload();" class="refresh-btn">🔄 Rifresko Statistikat</button>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -895,55 +901,12 @@ async def get_stats():
                     {rows}
                 </tbody>
             </table>
-            <div class="refresh-note">⏳ Paneli rifreskohet automatikisht çdo 3 sekonda.</div>
+            <div class="refresh-note">💡 Rifreskoni faqen kur dëshironi të shihni numërimet e reja.</div>
         </div>
     </body>
     </html>
     """
-    return HTMLResponse(content=f"""
-    <!DOCTYPE html>
-    <html lang="sq">
-    <head>
-        <meta charset="UTF-8">
-        <title>Ad Analytics Dashboard</title>
-        <meta http-equiv="refresh" content="3">
-        <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 40px; }}
-            .container {{ max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }}
-            h1 {{ color: #1a0dab; margin-top: 0; font-size: 24px; }}
-            p {{ color: #5f6368; font-size: 14px; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
-            th {{ background: #1a73e8; color: white; text-align: left; padding: 12px; font-weight: 700; }}
-            .refresh-note {{ font-size: 12px; color: #888; margin-top: 20px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>📊 Ad Server Advanced Analytics Suite (Vercel Persistent Active)</h1>
-            <p>Statistikat e shfaqjeve, shikueshmërisë (MRC Viewability), klikimeve, zërit, ekranit të plotë dhe pajisjeve me ruajtje permanente në Vercel Redis/Upstash Database.</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Titulli</th>
-                        <th>Shfaqjet (Views)</th>
-                        <th>Shikueshmëria (Viewability)</th>
-                        <th>Klikimet (CTR)</th>
-                        <th>Zëri (Unmutes)</th>
-                        <th>Fullscreen</th>
-                        <th>Kompletime (100%)</th>
-                        <th>Pajisjet (Mob/Desk)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows}
-                </tbody>
-            </table>
-            <div class="refresh-note">⏳ Paneli rifreskohet automatikisht çdo 3 sekonda.</div>
-        </div>
-    </body>
-    </html>
-    """, media_type="text/html; charset=utf-8")
+    return HTMLResponse(content=html_stats, media_type="text/html; charset=utf-8")
 
 if __name__ == "__main__":
     import uvicorn
