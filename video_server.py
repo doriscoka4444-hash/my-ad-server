@@ -8,7 +8,7 @@ import os
 import json
 import threading
 
-app = FastAPI(title="Video Ad Server", version="17.0.0 (Vercel 100GB Direct Video Active)")
+app = FastAPI(title="Video Ad Server", version="18.0.0 (Vercel Serverless Aliases)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,6 +33,8 @@ def find_file_recursive(filename: str):
 
 # Fast HTTP 206 Partial Content Range Streaming for Safari & All Browsers
 @app.get("/local-videos/{filename:path}")
+@app.get("/api/local-videos/{filename:path}")
+@app.get("/api/index/local-videos/{filename:path}")
 async def serve_local_video(filename: str, request: Request, range: str = Header(None)):
     file_path = find_file_recursive(filename)
     if not file_path or not os.path.exists(file_path):
@@ -253,6 +255,8 @@ def get_server_base(request: Request) -> str:
     return str(request.base_url).rstrip("/")
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/api", response_class=HTMLResponse)
+@app.get("/api/index", response_class=HTMLResponse)
 async def home(request: Request):
     server_base = get_server_base(request)
     ads_list = ""
@@ -298,6 +302,8 @@ async def home(request: Request):
     """, media_type="text/html; charset=utf-8")
 
 @app.get("/loader.js")
+@app.get("/api/loader.js")
+@app.get("/api/index/loader.js")
 async def get_loader_script(request: Request):
     ads_json = {}
     for ad_id, ad in ADS_DATABASE.items():
@@ -726,6 +732,8 @@ async def get_loader_script(request: Request):
     return Response(content=js_code, media_type="application/javascript; charset=utf-8")
 
 @app.get("/track-event/{ad_id}/{event_type}")
+@app.get("/api/track-event/{ad_id}/{event_type}")
+@app.get("/api/index/track-event/{ad_id}/{event_type}")
 async def track_event(ad_id: str, event_type: str, device: str = "desktop"):
     with stats_lock:
         if ad_id in ADS_DATABASE:
@@ -748,6 +756,8 @@ async def track_event(ad_id: str, event_type: str, device: str = "desktop"):
     return {"status": "not_found"}
 
 @app.get("/track-view/{ad_id}")
+@app.get("/api/track-view/{ad_id}")
+@app.get("/api/index/track-view/{ad_id}")
 async def track_view(ad_id: str):
     with stats_lock:
         if ad_id in ADS_DATABASE:
@@ -756,6 +766,8 @@ async def track_view(ad_id: str):
     return {"status": "not_found"}
 
 @app.get("/track-click/{ad_id}")
+@app.get("/api/track-click/{ad_id}")
+@app.get("/api/index/track-click/{ad_id}")
 async def track_click(ad_id: str):
     with stats_lock:
         if ad_id in ADS_DATABASE:
@@ -764,6 +776,8 @@ async def track_click(ad_id: str):
     raise HTTPException(status_code=404, detail="Reklama nuk u gjet")
 
 @app.get("/stats", response_class=HTMLResponse)
+@app.get("/api/stats", response_class=HTMLResponse)
+@app.get("/api/index/stats", response_class=HTMLResponse)
 async def get_stats():
     rows = ""
     with stats_lock:
