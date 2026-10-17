@@ -10,7 +10,7 @@ import os
 import json
 import threading
 
-app = FastAPI(title="Video Ad Server", version="23.0.0 (100% Accurate Beacon Ad Tracking)")
+app = FastAPI(title="Video Ad Server", version="24.0.0 (Instant Page Load View Tracking)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,7 +33,7 @@ def save_global_stats_kv(data_dict: dict):
         return
     try:
         json_str = urllib.parse.quote(json.dumps(data_dict, ensure_ascii=False))
-        req_url = f"{KV_URL.rstrip('/')}/set/global_ad_stats_v3/{json_str}"
+        req_url = f"{KV_URL.rstrip('/')}/set/global_ad_stats_v4/{json_str}"
         req = urllib.request.Request(req_url, headers={"Authorization": f"Bearer {KV_TOKEN}"}, method="POST")
         with urllib.request.urlopen(req, timeout=2) as resp:
             pass
@@ -44,7 +44,7 @@ def load_global_stats_kv() -> dict:
     if not KV_URL or not KV_TOKEN:
         return {}
     try:
-        req_url = f"{KV_URL.rstrip('/')}/get/global_ad_stats_v3"
+        req_url = f"{KV_URL.rstrip('/')}/get/global_ad_stats_v4"
         req = urllib.request.Request(req_url, headers={"Authorization": f"Bearer {KV_TOKEN}"})
         with urllib.request.urlopen(req, timeout=2) as resp:
             data = json.loads(resp.read().decode())
@@ -328,7 +328,7 @@ async def home(request: Request):
     <body>
         <div class="container">
             <h1>🚀 Video Ad Server Live Dashboard</h1>
-            <p>Serveri është aktiv me numërim 100% të saktë via Image Beacons.</p>
+            <p>Serveri është aktiv me numërim automatik të menjëhershëm.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
             </div>
@@ -408,11 +408,9 @@ async def get_loader_script(request: Request):
             event_url: serverBase + "/track-event/" + adId
         }};
 
-        let viewCounted = false;
-        let viewableCounted = false;
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-        // 100% Reliable Cross-Origin Image Beacon Tracker (Bypasses all CORS blocks)
+        // 100% Reliable Cross-Origin Image Beacon Tracker
         function logEvent(eventType) {{
             const beaconUrl = ad.event_url + "/" + eventType + (isMobile ? "?device=mobile&_t=" : "?device=desktop&_t=") + Date.now();
             if (navigator.sendBeacon) {{
@@ -422,6 +420,11 @@ async def get_loader_script(request: Request):
                 img.src = beaconUrl;
             }}
         }}
+
+        // INSTANT VIEW LOGGING ON SCRIPT EXECUTION (Just like before!)
+        logEvent("view");
+
+        let viewableCounted = false;
 
         const container = document.createElement("div");
         container.style.width = "100%";
@@ -737,14 +740,12 @@ async def get_loader_script(request: Request):
             }}
         }}
 
+        let viewableTimer = null;
+
         const observer = new IntersectionObserver(function(entries) {{
             entries.forEach(entry => {{
                 if (entry.isIntersecting) {{
                     tryPlayVideo();
-                    if (!viewCounted) {{
-                        viewCounted = true;
-                        logEvent("view");
-                    }}
                     if (!viewableCounted && !viewableTimer) {{
                         viewableTimer = setTimeout(() => {{
                             viewableCounted = true;
