@@ -2,13 +2,15 @@ from fastapi import FastAPI, HTTPException, Request, Header
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import urllib.parse
+import urllib.request
+import urllib.error
 import random
 import uuid
 import os
 import json
 import threading
 
-app = FastAPI(title="Video Ad Server", version="19.0.0 (Ultra-Fast 0ms Optimization)")
+app = FastAPI(title="Video Ad Server", version="20.1.0 (Vercel Redis & Upstash Supported)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,6 +22,36 @@ app.add_middleware(
 
 root_dir = os.path.dirname(os.path.abspath(__file__))
 stats_lock = threading.Lock()
+
+# Vercel Redis & Upstash REST API Credentials (supports both Vercel KV and Upstash Redis)
+KV_URL = os.getenv("KV_REST_API_URL") or os.getenv("UPSTASH_REDIS_REST_URL") or os.getenv("REDIS_REST_URL")
+KV_TOKEN = os.getenv("KV_REST_API_TOKEN") or os.getenv("UPSTASH_REDIS_REST_TOKEN") or os.getenv("REDIS_REST_TOKEN")
+
+def kv_incr(key: str, amount: int = 1) -> int:
+    if not KV_URL or not KV_TOKEN:
+        return 0
+    try:
+        req_url = f"{KV_URL.rstrip('/')}/incrby/{key}/{amount}"
+        req = urllib.request.Request(req_url, headers={"Authorization": f"Bearer {KV_TOKEN}"}, method="POST")
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read().decode())
+            val = data.get("result")
+            return int(val) if val is not None else 0
+    except Exception:
+        return 0
+
+def kv_get(key: str) -> int:
+    if not KV_URL or not KV_TOKEN:
+        return 0
+    try:
+        req_url = f"{KV_URL.rstrip('/')}/get/{key}"
+        req = urllib.request.Request(req_url, headers={"Authorization": f"Bearer {KV_TOKEN}"})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read().decode())
+            val = data.get("result")
+            return int(val) if val is not None else 0
+    except Exception:
+        return 0
 
 def find_file_recursive(filename: str):
     desktop_dir = "C:/Users/User/Desktop/videos"
@@ -292,8 +324,8 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (Ultra-Fast 0ms Engine)</h1>
-            <p>Serveri është aktiv me shpejtësi maksimale.</p>
+            <h1>🚀 Video Ad Server Live Dashboard (Redis Persistent Active)</h1>
+            <p>Serveri është aktiv me ruajtje permanente në Vercel Redis Database.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
             </div>
@@ -746,18 +778,25 @@ async def track_event(ad_id: str, event_type: str, device: str = "desktop"):
             ad = ADS_DATABASE[ad_id]
             if event_type == "view":
                 ad["views"] += 1
+                kv_incr(f"stats:{ad_id}:views")
                 if device == "mobile":
                     ad["mobile_views"] += 1
+                    kv_incr(f"stats:{ad_id}:mobile_views")
                 else:
                     ad["desktop_views"] += 1
+                    kv_incr(f"stats:{ad_id}:desktop_views")
             elif event_type == "viewable":
                 ad["viewable_impressions"] += 1
+                kv_incr(f"stats:{ad_id}:viewable_impressions")
             elif event_type == "unmute":
                 ad["unmutes"] += 1
+                kv_incr(f"stats:{ad_id}:unmutes")
             elif event_type == "fullscreen":
                 ad["fullscreens"] += 1
+                kv_incr(f"stats:{ad_id}:fullscreens")
             elif event_type == "video_complete":
                 ad["video_completes"] += 1
+                kv_incr(f"stats:{ad_id}:video_completes")
             return {"status": "ok", "ad_id": ad_id, "event": event_type}
     return {"status": "not_found"}
 
@@ -768,6 +807,7 @@ async def track_view(ad_id: str):
     with stats_lock:
         if ad_id in ADS_DATABASE:
             ADS_DATABASE[ad_id]["views"] += 1
+            kv_incr(f"stats:{ad_id}:views")
             return {"status": "ok", "views": ADS_DATABASE[ad_id]["views"]}
     return {"status": "not_found"}
 
@@ -778,6 +818,7 @@ async def track_click(ad_id: str):
     with stats_lock:
         if ad_id in ADS_DATABASE:
             ADS_DATABASE[ad_id]["clicks"] += 1
+            kv_incr(f"stats:{ad_id}:clicks")
             return RedirectResponse(url=ADS_DATABASE[ad_id]["whatsapp_link"])
     raise HTTPException(status_code=404, detail="Reklama nuk u gjet")
 
@@ -788,14 +829,14 @@ async def get_stats():
     rows = ""
     with stats_lock:
         for ad_id, ad in ADS_DATABASE.items():
-            views = ad['views']
-            viewable = ad['viewable_impressions']
-            clicks = ad['clicks']
-            unmutes = ad['unmutes']
-            fullscreens = ad['fullscreens']
-            completes = ad['video_completes']
-            mob = ad['mobile_views']
-            desk = ad['desktop_views']
+            views = max(ad['views'], kv_get(f"stats:{ad_id}:views"))
+            viewable = max(ad['viewable_impressions'], kv_get(f"stats:{ad_id}:viewable_impressions"))
+            clicks = max(ad['clicks'], kv_get(f"stats:{ad_id}:clicks"))
+            unmutes = max(ad['unmutes'], kv_get(f"stats:{ad_id}:unmutes"))
+            fullscreens = max(ad['fullscreens'], kv_get(f"stats:{ad_id}:fullscreens"))
+            completes = max(ad['video_completes'], kv_get(f"stats:{ad_id}:video_completes"))
+            mob = max(ad['mobile_views'], kv_get(f"stats:{ad_id}:mobile_views"))
+            desk = max(ad['desktop_views'], kv_get(f"stats:{ad_id}:desktop_views"))
 
             ctr = f"{(clicks / views * 100):.1f}%" if views > 0 else "0.0%"
             viewability_rate = f"{(viewable / views * 100):.1f}%" if views > 0 else "0.0%"
@@ -834,8 +875,8 @@ async def get_stats():
     </head>
     <body>
         <div class="container">
-            <h1>📊 Ad Server Advanced Analytics Suite</h1>
-            <p>Statistikat e shfaqjeve, shikueshmërisë (MRC Viewability), klikimeve, zërit, ekranit të plotë dhe pajisjeve në kohë reale.</p>
+            <h1>📊 Ad Server Advanced Analytics Suite (Vercel Persistent Active)</h1>
+            <p>Statistikat e shfaqjeve, shikueshmërisë (MRC Viewability), klikimeve, zërit, ekranit të plotë dhe pajisjeve me ruajtje permanente në Vercel Redis/Upstash Database.</p>
             <table>
                 <thead>
                     <tr>
@@ -859,7 +900,50 @@ async def get_stats():
     </body>
     </html>
     """
-    return HTMLResponse(content=html_stats, media_type="text/html; charset=utf-8")
+    return HTMLResponse(content=f"""
+    <!DOCTYPE html>
+    <html lang="sq">
+    <head>
+        <meta charset="UTF-8">
+        <title>Ad Analytics Dashboard</title>
+        <meta http-equiv="refresh" content="3">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 40px; }}
+            .container {{ max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }}
+            h1 {{ color: #1a0dab; margin-top: 0; font-size: 24px; }}
+            p {{ color: #5f6368; font-size: 14px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
+            th {{ background: #1a73e8; color: white; text-align: left; padding: 12px; font-weight: 700; }}
+            .refresh-note {{ font-size: 12px; color: #888; margin-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>📊 Ad Server Advanced Analytics Suite (Vercel Persistent Active)</h1>
+            <p>Statistikat e shfaqjeve, shikueshmërisë (MRC Viewability), klikimeve, zërit, ekranit të plotë dhe pajisjeve me ruajtje permanente në Vercel Redis/Upstash Database.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Titulli</th>
+                        <th>Shfaqjet (Views)</th>
+                        <th>Shikueshmëria (Viewability)</th>
+                        <th>Klikimet (CTR)</th>
+                        <th>Zëri (Unmutes)</th>
+                        <th>Fullscreen</th>
+                        <th>Kompletime (100%)</th>
+                        <th>Pajisjet (Mob/Desk)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+            <div class="refresh-note">⏳ Paneli rifreskohet automatikisht çdo 3 sekonda.</div>
+        </div>
+    </body>
+    </html>
+    """, media_type="text/html; charset=utf-8")
 
 if __name__ == "__main__":
     import uvicorn
