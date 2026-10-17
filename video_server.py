@@ -8,7 +8,7 @@ import os
 import json
 import threading
 
-app = FastAPI(title="Video Ad Server", version="12.3.0 (rubinet_fast.mp4 Compressed)")
+app = FastAPI(title="Video Ad Server", version="13.0.0 (9 Ads Active)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -211,6 +211,22 @@ ADS_DATABASE = {
         "video_completes": 0,
         "mobile_views": 0,
         "desktop_views": 0
+    },
+    "reklama-9": {
+        "title": "Makine loder per femije",
+        "video_filename": "makiona_fast.mp4",
+        "description": "Super dhurate per te vegjlit tuaj, makine me telekomande.",
+        "old_price": "6,000 Lekë",
+        "price": "5,000 Lekë",
+        "whatsapp_link": whatsapp_url,
+        "views": 0,
+        "viewable_impressions": 0,
+        "clicks": 0,
+        "unmutes": 0,
+        "fullscreens": 0,
+        "video_completes": 0,
+        "mobile_views": 0,
+        "desktop_views": 0
     }
 }
 
@@ -253,7 +269,7 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (8 Ads Active)</h1>
+            <h1>🚀 Video Ad Server Live Dashboard (9 Ads Active)</h1>
             <p>Serveri është aktiv.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
@@ -299,7 +315,7 @@ async def get_loader_script(request: Request):
         let adId = slotAttr;
 
         if (!slotAttr || slotAttr === "auto" || slotAttr === "mix") {{
-            const randomIdx = Math.floor(Math.random() * 8) + 1;
+            const randomIdx = Math.floor(Math.random() * 9) + 1;
             adId = "reklama-" + randomIdx;
         }}
 
@@ -775,7 +791,7 @@ async def get_stats():
             .container {{ max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }}
             h1 {{ color: #1a0dab; margin-top: 0; font-size: 24px; }}
             p {{ color: #5f6368; font-size: 14px; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 25px; font-size: 13px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
             th {{ background: #1a73e8; color: white; text-align: left; padding: 12px; font-weight: 700; }}
             .refresh-note {{ font-size: 12px; color: #888; margin-top: 20px; }}
         </style>
@@ -807,7 +823,50 @@ async def get_stats():
     </body>
     </html>
     """
-    return HTMLResponse(content=html_stats, media_type="text/html; charset=utf-8")
+    return HTMLResponse(content=f"""
+    <!DOCTYPE html>
+    <html lang="sq">
+    <head>
+        <meta charset="UTF-8">
+        <title>Ad Analytics Dashboard</title>
+        <meta http-equiv="refresh" content="3">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 40px; }}
+            .container {{ max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }}
+            h1 {{ color: #1a0dab; margin-top: 0; font-size: 24px; }}
+            p {{ color: #5f6368; font-size: 14px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
+            th {{ background: #1a73e8; color: white; text-align: left; padding: 12px; font-weight: 700; }}
+            .refresh-note {{ font-size: 12px; color: #888; margin-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>📊 Ad Server Advanced Analytics Suite</h1>
+            <p>Statistikat e shfaqjeve, shikueshmërisë (MRC Viewability), klikimeve, zërit, ekranit të plotë dhe pajisjeve në kohë reale.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Titulli</th>
+                        <th>Shfaqjet (Views)</th>
+                        <th>Shikueshmëria (Viewability)</th>
+                        <th>Klikimet (CTR)</th>
+                        <th>Zëri (Unmutes)</th>
+                        <th>Fullscreen</th>
+                        <th>Kompletime (100%)</th>
+                        <th>Pajisjet (Mob/Desk)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+            <div class="refresh-note">⏳ Paneli rifreskohet automatikisht çdo 3 sekonda.</div>
+        </div>
+    </body>
+    </html>
+    """, media_type="text/html; charset=utf-8")
 
 if __name__ == "__main__":
     import uvicorn
