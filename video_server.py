@@ -8,7 +8,7 @@ import os
 import json
 import threading
 
-app = FastAPI(title="Video Ad Server", version="14.0.0 (10 Ads Active)")
+app = FastAPI(title="Video Ad Server", version="15.1.0 (Direct Repository Videos Active)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,7 +31,7 @@ def find_file_recursive(filename: str):
             return os.path.join(current_root, filename)
     return None
 
-# Fast HTTP 206 Partial Content Range Streaming for Safari
+# Fast HTTP 206 Partial Content Range Streaming for Safari & All Browsers
 @app.get("/local-videos/{filename:path}")
 async def serve_local_video(filename: str, request: Request, range: str = Header(None)):
     file_path = find_file_recursive(filename)
