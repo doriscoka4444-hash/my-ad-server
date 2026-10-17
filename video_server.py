@@ -8,7 +8,7 @@ import os
 import json
 import threading
 
-app = FastAPI(title="Video Ad Server", version="11.0.0 (Advanced Ad Analytics Suite)")
+app = FastAPI(title="Video Ad Server", version="12.3.0 (rubinet_fast.mp4 Compressed)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -195,6 +195,22 @@ ADS_DATABASE = {
         "video_completes": 0,
         "mobile_views": 0,
         "desktop_views": 0
+    },
+    "reklama-8": {
+        "title": "Rubinet me dy koka",
+        "video_filename": "rubinet_fast.mp4",
+        "description": "Rubinet me dy koka, ideal per pastrimin e tualetit",
+        "old_price": "3,500 Lekë",
+        "price": "3,000 Lekë",
+        "whatsapp_link": whatsapp_url,
+        "views": 0,
+        "viewable_impressions": 0,
+        "clicks": 0,
+        "unmutes": 0,
+        "fullscreens": 0,
+        "video_completes": 0,
+        "mobile_views": 0,
+        "desktop_views": 0
     }
 }
 
@@ -237,7 +253,7 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (v11.0 Analytics Suite)</h1>
+            <h1>🚀 Video Ad Server Live Dashboard (8 Ads Active)</h1>
             <p>Serveri është aktiv.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
@@ -283,7 +299,7 @@ async def get_loader_script(request: Request):
         let adId = slotAttr;
 
         if (!slotAttr || slotAttr === "auto" || slotAttr === "mix") {{
-            const randomIdx = Math.floor(Math.random() * 7) + 1;
+            const randomIdx = Math.floor(Math.random() * 8) + 1;
             adId = "reklama-" + randomIdx;
         }}
 
@@ -302,8 +318,6 @@ async def get_loader_script(request: Request):
         const rawAd = ADS_DATA[adId] || ADS_DATA["reklama-1"];
         if (!rawAd) return;
 
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
         const ad = {{
             title: rawAd.title,
             description: rawAd.description,
@@ -317,6 +331,7 @@ async def get_loader_script(request: Request):
 
         let viewCounted = false;
         let viewableCounted = false;
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         function logEvent(eventType) {{
             fetch(ad.event_url + "/" + eventType + (isMobile ? "?device=mobile" : "?device=desktop")).catch(e => {{}});
@@ -495,7 +510,7 @@ async def get_loader_script(request: Request):
                     padding: 8px 16px;
                     border-radius: 18px;
                     text-decoration: none;
-                    font-weight: 700;
+                    font-weight: 600;
                     font-size: 13px;
                     letter-spacing: -0.01em;
                     transition: background 0.2s, box-shadow 0.2s;
@@ -577,7 +592,6 @@ async def get_loader_script(request: Request):
             video.playsInline = true;
             video.setAttribute("muted", "");
             video.setAttribute("playsinline", "");
-
             video.addEventListener("ended", () => logEvent("video_complete"));
         }}
 
@@ -638,9 +652,6 @@ async def get_loader_script(request: Request):
             }}
         }}
 
-        // Track MRC standard Viewable Impression (1+ second on screen)
-        let viewableTimer = null;
-
         const observer = new IntersectionObserver(function(entries) {{
             entries.forEach(entry => {{
                 if (entry.isIntersecting) {{
@@ -653,7 +664,7 @@ async def get_loader_script(request: Request):
                         viewableTimer = setTimeout(() => {{
                             viewableCounted = true;
                             logEvent("viewable");
-                        }}, 1000); // 1 continuous second on screen
+                        }}, 1000);
                     }}
                 }} else {{
                     video.pause();
@@ -760,11 +771,11 @@ async def get_stats():
         <title>Ad Analytics Dashboard</title>
         <meta http-equiv="refresh" content="3">
         <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 30px; }}
+            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 40px; }}
             .container {{ max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }}
             h1 {{ color: #1a0dab; margin-top: 0; font-size: 24px; }}
             p {{ color: #5f6368; font-size: 14px; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 25px; font-size: 13px; }}
             th {{ background: #1a73e8; color: white; text-align: left; padding: 12px; font-weight: 700; }}
             .refresh-note {{ font-size: 12px; color: #888; margin-top: 20px; }}
         </style>
