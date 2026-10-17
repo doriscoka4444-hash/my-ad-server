@@ -8,7 +8,7 @@ import os
 import json
 import threading
 
-app = FastAPI(title="Video Ad Server", version="15.1.0 (Direct Repository Videos Active)")
+app = FastAPI(title="Video Ad Server", version="16.0.0 (GitHub Public Release CDN Active)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,6 +21,9 @@ app.add_middleware(
 root_dir = os.path.dirname(os.path.abspath(__file__))
 stats_lock = threading.Lock()
 
+# Unlimited Bandwidth GitHub Releases CDN Base URL
+GITHUB_CDN_BASE = "https://github.com/doriscoka4444-hash/ad-video-server/releases/download/v1.0.0"
+
 def find_file_recursive(filename: str):
     desktop_dir = "C:/Users/User/Desktop/videos"
     if os.path.exists(desktop_dir) and filename in os.listdir(desktop_dir):
@@ -31,7 +34,7 @@ def find_file_recursive(filename: str):
             return os.path.join(current_root, filename)
     return None
 
-# Fast HTTP 206 Partial Content Range Streaming for Safari & All Browsers
+# Fallback local video streaming route
 @app.get("/local-videos/{filename:path}")
 async def serve_local_video(filename: str, request: Request, range: str = Header(None)):
     file_path = find_file_recursive(filename)
@@ -285,8 +288,8 @@ async def home(request: Request):
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Video Ad Server Live Dashboard (10 Ads Active)</h1>
-            <p>Serveri është aktiv.</p>
+            <h1>🚀 Video Ad Server Live Dashboard (GitHub Unlimited CDN Active)</h1>
+            <p>Serveri është aktiv dhe videot transmetohen falas nga GitHub CDN.</p>
             <div class="nav-links">
                 <a href="{server_base}/stats" class="stats">📊 Shiko Statistikat (Analytics)</a>
             </div>
@@ -346,6 +349,7 @@ async def get_loader_script(request: Request):
             serverBase = window.location.origin;
         }}
 
+        const githubCdnBase = "{GITHUB_CDN_BASE}";
         const ADS_DATA = {ads_js_str};
         const rawAd = ADS_DATA[adId] || ADS_DATA["reklama-1"];
         if (!rawAd) return;
@@ -353,7 +357,7 @@ async def get_loader_script(request: Request):
         const ad = {{
             title: rawAd.title,
             description: rawAd.description,
-            video_url: serverBase + "/local-videos/" + rawAd.video_filename,
+            video_url: githubCdnBase + "/" + rawAd.video_filename,
             old_price: rawAd.old_price,
             price: rawAd.price,
             whatsapp_link: rawAd.whatsapp_link,
@@ -807,7 +811,7 @@ async def get_stats():
             .container {{ max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }}
             h1 {{ color: #1a0dab; margin-top: 0; font-size: 24px; }}
             p {{ color: #5f6368; font-size: 14px; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 25px; font-size: 13px; }}
             th {{ background: #1a73e8; color: white; text-align: left; padding: 12px; font-weight: 700; }}
             .refresh-note {{ font-size: 12px; color: #888; margin-top: 20px; }}
         </style>
